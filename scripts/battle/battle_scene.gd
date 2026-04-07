@@ -5,6 +5,7 @@ extends Node2D
 @onready var turn_manager: Node = $TurnManager
 @onready var grid: Node = $Grid
 @onready var player: Node2D = $Player
+@onready var background: ColorRect = $Background
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var hp_label: Label = $UILayer/HpLabel
 @onready var turn_label: Label = $UILayer/TurnLabel
@@ -33,9 +34,14 @@ var _previewing_skill: int = -1
 
 var _base_scene_pos: Vector2 = Vector2.ZERO
 var _shake_tween: Tween = null
+var _viewport_size: Vector2 = Vector2.ZERO
+
+const UNIT_SIZE := 96.0
 
 func _ready() -> void:
 	_base_scene_pos = position
+	_viewport_size = get_viewport().get_visible_rect().size
+	_apply_hd_layout()
 	_setup_battle()
 	_create_skill_bar()
 	turn_manager.player_input_phase.connect(_on_player_input_phase)
@@ -49,9 +55,10 @@ func _ready() -> void:
 	turn_manager.start_battle()
 
 func _setup_battle() -> void:
-	grid.setup(9)
+	grid.setup(9, _viewport_size)
 	grid.place_entity(player, 1)
 	player.grid_pos = 1
+	_configure_player_sprite()
 	player.update_visual_position(grid.grid_to_world(1))
 	_spawn_enemy(5, "res://scripts/battle/enemies/slime_enemy.gd", Color.INDIAN_RED)
 	_spawn_enemy(7, "res://scripts/battle/enemies/archer_enemy.gd", Color(0.2, 0.8, 0.3))
@@ -62,19 +69,19 @@ func _setup_battle() -> void:
 func _create_skill_bar() -> void:
 	# Energy display
 	_energy_label = Label.new()
-	_energy_label.position = Vector2(8, 32)
-	_energy_label.add_theme_font_size_override("font_size", 10)
+	_energy_label.position = Vector2(24, 90)
+	_energy_label.add_theme_font_size_override("font_size", 24)
 	_energy_label.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0))
 	ui_layer.add_child(_energy_label)
 	_update_energy_display()
 
 	# Skill buttons - positioned at bottom center
-	var bar_y = 188
-	var btn_size = Vector2(36, 22)
-	var gap = 3
+	var bar_y = _viewport_size.y - 84
+	var btn_size = Vector2(128, 56)
+	var gap = 12
 	var total_btns = player.skills.size() + 2  # skills + defend + skip
 	var total_width = total_btns * (btn_size.x + gap) - gap
-	var start_x = (384 - total_width) / 2
+	var start_x = (_viewport_size.x - total_width) * 0.5
 
 	# Skill buttons
 	for i in range(player.skills.size()):
@@ -83,7 +90,7 @@ func _create_skill_bar() -> void:
 		btn.text = skill.icon_text
 		btn.position = Vector2(start_x + i * (btn_size.x + gap), bar_y)
 		btn.size = btn_size
-		btn.add_theme_font_size_override("font_size", 8)
+		btn.add_theme_font_size_override("font_size", 22)
 		btn.tooltip_text = "%s (%d能量)\n%s" % [skill.skill_name, skill.energy_cost, skill.description]
 		btn.pressed.connect(_on_skill_button_pressed.bind(i))
 		btn.mouse_entered.connect(_on_skill_button_hover.bind(i))
@@ -97,7 +104,7 @@ func _create_skill_bar() -> void:
 	_defend_button.text = "盾"
 	_defend_button.position = Vector2(def_x, bar_y)
 	_defend_button.size = btn_size
-	_defend_button.add_theme_font_size_override("font_size", 8)
+	_defend_button.add_theme_font_size_override("font_size", 22)
 	_defend_button.tooltip_text = "防御\n减少1点伤害，获得1能量"
 	_defend_button.pressed.connect(_on_defend_button_pressed)
 	ui_layer.add_child(_defend_button)
@@ -108,10 +115,25 @@ func _create_skill_bar() -> void:
 	_skip_button.text = "等"
 	_skip_button.position = Vector2(skip_x, bar_y)
 	_skip_button.size = btn_size
-	_skip_button.add_theme_font_size_override("font_size", 8)
+	_skip_button.add_theme_font_size_override("font_size", 22)
 	_skip_button.tooltip_text = "跳过回合\n获得1能量"
 	_skip_button.pressed.connect(_on_skip_button_pressed)
 	ui_layer.add_child(_skip_button)
+
+func _configure_player_sprite() -> void:
+	var sprite := player.get_node_or_null("PlayerSprite") as ColorRect
+	if sprite:
+		sprite.size = Vector2(UNIT_SIZE, UNIT_SIZE)
+		sprite.position = Vector2(-UNIT_SIZE * 0.5, -UNIT_SIZE)
+
+func _apply_hd_layout() -> void:
+	if background:
+		background.position = Vector2.ZERO
+		background.size = _viewport_size
+	hp_label.position = Vector2(24, 18)
+	hp_label.add_theme_font_size_override("font_size", 24)
+	turn_label.position = Vector2(24, 52)
+	turn_label.add_theme_font_size_override("font_size", 24)
 
 func _spawn_enemy(pos: int, enemy_script_path: String = "res://scripts/battle/enemies/slime_enemy.gd", enemy_color: Color = Color.INDIAN_RED) -> void:
 	var enemy_node = Node2D.new()
@@ -127,14 +149,14 @@ func _spawn_enemy(pos: int, enemy_script_path: String = "res://scripts/battle/en
 	enemies.append(enemy_node)
 	var sprite = ColorRect.new()
 	sprite.color = enemy_color
-	sprite.size = Vector2(24, 24)
-	sprite.position = Vector2(-12, -24)
+	sprite.size = Vector2(UNIT_SIZE, UNIT_SIZE)
+	sprite.position = Vector2(-UNIT_SIZE * 0.5, -UNIT_SIZE)
 	enemy_node.add_child(sprite)
 	var elabel = Label.new()
 	elabel.name = "HpLabel"
 	elabel.text = str(enemy_node.current_hp)
-	elabel.position = Vector2(-8, -36)
-	elabel.add_theme_font_size_override("font_size", 8)
+	elabel.position = Vector2(-14, -UNIT_SIZE - 28)
+	elabel.add_theme_font_size_override("font_size", 18)
 	enemy_node.add_child(elabel)
 
 # --- Input handling ---
@@ -350,21 +372,21 @@ func _set_all_buttons_disabled(disabled: bool) -> void:
 
 func _on_entity_damaged(_amount: int, hit_world_pos: Vector2) -> void:
 	_spawn_hit_pulse(hit_world_pos)
-	_play_screen_shake(2.5)
+	_play_screen_shake(10.0)
 
 func _spawn_hit_pulse(hit_world_pos: Vector2) -> void:
 	var pulse = Polygon2D.new()
 	pulse.polygon = PackedVector2Array([
-		Vector2(-3, -3), Vector2(3, -3), Vector2(3, 3), Vector2(-3, 3),
+		Vector2(-10, -10), Vector2(10, -10), Vector2(10, 10), Vector2(-10, 10),
 	])
 	pulse.color = Color(1.0, 0.75, 0.25, 0.95)
 	pulse.position = hit_world_pos
 	add_child(pulse)
 	var tween = create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(pulse, "scale", Vector2(2.8, 2.8), 0.14).set_ease(Tween.EASE_OUT)
+	tween.tween_property(pulse, "scale", Vector2(3.6, 3.6), 0.16).set_ease(Tween.EASE_OUT)
 	tween.tween_property(pulse, "rotation", 0.25, 0.14)
-	tween.tween_property(pulse, "modulate:a", 0.0, 0.14)
+	tween.tween_property(pulse, "modulate:a", 0.0, 0.16)
 	tween.finished.connect(pulse.queue_free)
 
 func _play_screen_shake(intensity: float) -> void:
@@ -420,19 +442,23 @@ func _get_cell_color(cell: int) -> Color:
 	return Color(0.2, 0.2, 0.3, 0.5)
 
 func _draw_grid() -> void:
+	for child in grid_visual.get_children():
+		child.queue_free()
 	_cell_rects.clear()
+	var cell_size = float(grid.cell_size) - 8.0
+	var y_offset = cell_size * 0.92
 	for i in range(grid.grid_width):
 		var cell = ColorRect.new()
-		cell.size = Vector2(30, 30)
+		cell.size = Vector2(cell_size, cell_size)
 		var world_pos = grid.grid_to_world(i)
-		cell.position = Vector2(world_pos.x - 15, world_pos.y - 28)
+		cell.position = Vector2(world_pos.x - cell_size * 0.5, world_pos.y - y_offset)
 		cell.color = _get_cell_color(i)
 		grid_visual.add_child(cell)
 		_cell_rects.append(cell)
 		var border = ReferenceRect.new()
-		border.size = Vector2(30, 30)
+		border.size = Vector2(cell_size, cell_size)
 		border.position = cell.position
 		border.border_color = Color(0.4, 0.4, 0.5, 0.8)
-		border.border_width = 1.0
+		border.border_width = 2.0
 		border.editor_only = false
 		grid_visual.add_child(border)

@@ -14,6 +14,7 @@ signal damaged(amount: int, world_pos: Vector2)
 
 var is_dead: bool = false
 var _visual_anchor: Vector2 = Vector2.ZERO
+var _motion_tween: Tween = null
 
 func _ready() -> void:
 	_visual_anchor = position
@@ -39,6 +40,7 @@ func heal(amount: int) -> void:
 	hp_changed.emit(current_hp, max_hp)
 
 func _on_die() -> void:
+	_stop_motion_tween()
 	is_dead = true
 	_spawn_floating_text("KO", Color(1.0, 0.82, 0.22, 1.0))
 	died.emit()
@@ -46,8 +48,19 @@ func _on_die() -> void:
 
 func update_visual_position(world_pos: Vector2) -> void:
 	# Immediately set both anchor and position to avoid drift from old tweens
+	_stop_motion_tween()
 	_visual_anchor = world_pos
 	position = world_pos
+
+func _stop_motion_tween() -> void:
+	if _motion_tween:
+		_motion_tween.kill()
+		_motion_tween = null
+	position = _visual_anchor
+
+func _on_motion_tween_finished() -> void:
+	position = _visual_anchor
+	_motion_tween = null
 
 func play_attack_effect(direction: int = facing) -> void:
 	if is_dead:
@@ -55,36 +68,36 @@ func play_attack_effect(direction: int = facing) -> void:
 	var dir = direction
 	if dir == 0:
 		dir = facing
-	# Immediately snap to anchor, no tween drift
-	position = _visual_anchor
-	var lunge_distance = 5.0
+	_stop_motion_tween()
+	var lunge_distance = 20.0
 	var lunge_target = _visual_anchor + Vector2(lunge_distance * dir, 0)
-	var tween = create_tween()
-	tween.set_parallel(false)
-	tween.tween_property(self, "position", lunge_target, 0.05).set_ease(Tween.EASE_OUT)
-	tween.tween_property(self, "position", _visual_anchor, 0.08).set_ease(Tween.EASE_IN)
+	_motion_tween = create_tween()
+	_motion_tween.set_parallel(false)
+	_motion_tween.tween_property(self, "position", lunge_target, 0.05).set_ease(Tween.EASE_OUT)
+	_motion_tween.tween_property(self, "position", _visual_anchor, 0.08).set_ease(Tween.EASE_IN)
+	_motion_tween.finished.connect(_on_motion_tween_finished)
 
 func _play_hit_effect(amount: int) -> void:
 	_spawn_floating_text("-%d" % amount, Color(1.0, 0.35, 0.35, 1.0))
-	# Immediately snap to anchor to stop any in-progress move/animation
-	position = _visual_anchor
+	_stop_motion_tween()
 	var flash = create_tween()
 	flash.set_parallel(true)
 	flash.tween_property(self, "modulate", Color(1.45, 0.42, 0.42, 1.0), 0.05)
 	flash.tween_property(self, "modulate", Color(1, 1, 1, 1), 0.12)
 
-	var shake = create_tween()
-	shake.set_parallel(true)
-	shake.tween_property(self, "position", _visual_anchor + Vector2(-4, 0), 0.03)
-	shake.tween_property(self, "position", _visual_anchor + Vector2(4, 0), 0.03)
-	shake.tween_property(self, "position", _visual_anchor + Vector2(-2, 0), 0.02)
-	shake.tween_property(self, "position", _visual_anchor, 0.02)
+	_motion_tween = create_tween()
+	_motion_tween.set_parallel(false)
+	_motion_tween.tween_property(self, "position", _visual_anchor + Vector2(-12, 0), 0.03)
+	_motion_tween.tween_property(self, "position", _visual_anchor + Vector2(12, 0), 0.03)
+	_motion_tween.tween_property(self, "position", _visual_anchor + Vector2(-6, 0), 0.02)
+	_motion_tween.tween_property(self, "position", _visual_anchor, 0.02)
+	_motion_tween.finished.connect(_on_motion_tween_finished)
 
 func _spawn_floating_text(text_value: String, text_color: Color) -> void:
 	var pop = Label.new()
 	pop.text = text_value
-	pop.position = Vector2(-10, -52)
-	pop.add_theme_font_size_override("font_size", 9)
+	pop.position = Vector2(-22, -128)
+	pop.add_theme_font_size_override("font_size", 20)
 	pop.add_theme_color_override("font_color", text_color)
 	add_child(pop)
 

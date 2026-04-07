@@ -6,15 +6,18 @@ signal entity_moved(entity: Node, from_pos: int, to_pos: int)
 signal entity_added(entity: Node, pos: int)
 signal entity_removed(entity: Node, pos: int)
 
-const CELL_SIZE: int = 32  # Pixels per grid cell
-const GRID_OFFSET_X: int = 48  # Left margin in pixels
-const GRID_OFFSET_Y: int = 140  # Vertical position of the grid
+var cell_size: int = 120  # Pixels per grid cell at 1080p
+var grid_offset_x: float = 0.0
+var grid_offset_y: float = 0.0
+var cell_click_top: float = -102.0
+var cell_click_bottom: float = 22.0
 
 var grid_width: int = 9  # Number of cells (configurable per battle)
 var _cells: Array = []  # Each element is null or entity reference
 
 func _ready() -> void:
 	_init_grid(grid_width)
+	_recalculate_layout(get_viewport().get_visible_rect().size)
 
 func _init_grid(width: int) -> void:
 	grid_width = width
@@ -23,8 +26,17 @@ func _init_grid(width: int) -> void:
 	for i in range(width):
 		_cells[i] = null
 
-func setup(width: int) -> void:
+func setup(width: int, viewport_size: Vector2 = Vector2.ZERO) -> void:
 	_init_grid(width)
+	if viewport_size == Vector2.ZERO:
+		viewport_size = get_viewport().get_visible_rect().size
+	_recalculate_layout(viewport_size)
+
+func _recalculate_layout(viewport_size: Vector2) -> void:
+	grid_offset_x = floor((viewport_size.x - grid_width * cell_size) * 0.5)
+	grid_offset_y = floor(viewport_size.y * 0.68)
+	cell_click_top = -cell_size * 0.85
+	cell_click_bottom = cell_size * 0.18
 
 # --- Position queries ---
 
@@ -71,7 +83,7 @@ func move_entity(entity: Node, new_pos: int) -> bool:
 # --- Utility ---
 
 func grid_to_world(pos: int) -> Vector2:
-	return Vector2(GRID_OFFSET_X + pos * CELL_SIZE + CELL_SIZE / 2, GRID_OFFSET_Y)
+	return Vector2(grid_offset_x + pos * cell_size + cell_size * 0.5, grid_offset_y)
 
 func get_all_entities() -> Array:
 	var result: Array = []
@@ -92,12 +104,11 @@ func get_distance(pos_a: int, pos_b: int) -> int:
 
 func world_to_grid(world_pos: Vector2) -> int:
 	# Convert a world/mouse position to grid index, returns -1 if outside grid
-	var relative_x = world_pos.x - GRID_OFFSET_X
-	var relative_y = world_pos.y - GRID_OFFSET_Y
-	# Check vertical bounds (cell is drawn from y-28 to y+2 relative to anchor)
-	if relative_y < -28 or relative_y > 2:
+	var relative_x = world_pos.x - grid_offset_x
+	var relative_y = world_pos.y - grid_offset_y
+	if relative_y < cell_click_top or relative_y > cell_click_bottom:
 		return -1
-	var idx = int(relative_x / CELL_SIZE)
+	var idx = int(floor(relative_x / cell_size))
 	if idx >= 0 and idx < grid_width:
 		return idx
 	return -1

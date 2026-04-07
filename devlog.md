@@ -1,297 +1,297 @@
-# Shogun Prototype - 开发日志
+﻿# Shogun Prototype - 开发日志（协作版）
+
+> 维护约定：每次代码改动前先阅读本文件；每次代码改动后同步更新本文件。
 
 ---
 
-## 版本 0.5.2 - 技能结算修复（范围/伤害/能量/空放） (2026-04-06)
+## 快速上手（给自己和协作者）
 
-### 本次修改的文件
+### 项目基线
+- 引擎版本：Godot 4.6
+- 渲染后端：GL Compatibility
+- 设计视口：1920x1080
+- 当前主工程目录：`d:/mygodot/shugon`
+- 当前主循环：主菜单 -> 战斗 ->（胜利暂时直接下一战，失败为占位结束）
 
-| 文件 | 改动内容 |
-|------|---------|
-| `scripts/battle/player.gd` | 重写技能释放结算：支持空放、释放即扣能量、目标格合法性过滤、命中统计与落空反馈 |
-| `scripts/battle/skill_data.gd` | 强化范围计算：攻击距离最小为1，面朝为0时自动修正，避免异常范围导致命中错误 |
+### 推荐阅读顺序（5分钟理解项目）
+1. `project.godot`（全局配置、主场景、Autoload、输入映射）
+2. `scenes/main.tscn` + `scripts/ui/main_menu.gd`（入口）
+3. `scenes/battle/battle_scene.tscn` + `scripts/battle/battle_scene.gd`（战斗总控）
+4. `scripts/battle/turn_manager.gd`（回合阶段流转）
+5. `scripts/battle/entity.gd`、`player.gd`、`enemy_base.gd`（实体与行为核心）
 
-### 修复内容
-
-- 修复技能释放逻辑：技能现在可以在没有命中敌人的情况下正常释放（不再被强制拦截）。
-- 修复能量消耗逻辑：只要技能释放成功（输入有效且能量足够），就会按技能消耗扣除能量。
-- 修复范围判定逻辑：技能目标格会先过滤到合法格子范围内，再进行伤害结算。
-- 修复伤害结算稳定性：技能伤害与能量消耗做下限保护（不小于0），避免异常数据导致错误表现。
-- 新增落空反馈：技能未命中时显示 `落空` 飘字，明确告知玩家本次技能已释放但未命中。
-
-### 结果
-
-- 技能行为更符合策略游戏预期：可以主动空放做节奏管理，范围和消耗结算更加一致可控。
-
----
-
-## 版本 0.5.1 - 弓手飘移BUG修复 (2026-04-06)
-
-### 本次修改的文件
-
-| 文件 | 改动内容 |
-|------|---------|
-| `scripts/battle/entity.gd` | 新增延迟一帧锚点同步 `_sync_visual_anchor()`，确保实体在 `add_child` 后再设置位置时，视觉锚点与真实位置一致 |
-| `scripts/battle/battle_scene.gd` | 玩家与敌人初始摆放改为调用 `update_visual_position()`，统一走“位置+视觉锚点”同步入口 |
-| `scripts/battle/enemies/archer_enemy.gd` | 清理 `decide_action` 未使用参数警告（`grid` -> `_grid`） |
-
-### 修复的问题
-
-- 修复弓手在攻击/受击时偶发朝左上角漂移的问题。
-- 根因：部分实体在进入场景后先执行 `_ready()` 记录锚点，再被外部脚本设置 `position`，导致动画仍使用旧锚点（接近原点）。
-- 结果：弓手（以及其他动态生成敌人）攻击与受击动画不再偏移，视觉位置稳定。
-
----
-
-## 版本 0.5.0 - 弓手敌人 + UI调整 (2026-04-06)
-
-### 本次修改的文件
-
-| 文件 | 改动内容 |
-|------|---------|
-| `scenes/battle/battle_scene.tscn` | 删除 `UILayer/InfoLabel` 节点（挡住了下方技能栏） |
-| `scripts/battle/battle_scene.gd` | 删除所有 `info_label` 相关代码；`_spawn_enemy` 支持自定义脚本路径和颜色参数 |
-| `scripts/battle/enemies/archer_enemy.gd` | **新增** — 弓手敌人，绿色，每3回合远程攻击，距离<2时后撤 |
-
-### 新增敌人类型
-
-#### 弓手（Archer）
-- 颜色：**绿色**（与史莱姆的印度红区分）
-- HP：2
-- 行动周期：3回合
-- AI行为：
-  - 玩家距离 ≥ 2格：远程射击（1伤害）
-  - 玩家距离 = 1格：后撤1格
-- 意图显示：
-  - `射！`（橙色）— 将要射击
-  - `后退`（黄色）— 将要后撤
-  - `装弹(N)`（灰色）— 等待中
-
-### 战场调整
-- 当前战场：玩家在格子1，史莱姆（红色）在格子5，弓手（绿色）在格子7
-
-### 接下来计划实现的功能
-1. **更多敌人类型** — 战士（高血量/高攻击）、冲锋怪（快速接近）
-2. **占位符像素素材** — 替换色块为简单像素画
-3. **关卡/楼层系统** — 多场战斗的 Roguelike 流程
-4. **奖励/升级界面** — 战斗间选择新技能
-
-### 已知问题
-- 没有音效
-- **BUG（未修复）：弓手攻击时视觉上会朝左上角飘走** — 实体位置动画（tween）管理问题，多个 tween 作用在 position 上导致偏移累积。弓箭手实际仍在原位置，逻辑不受影响，但视觉错误。具体表现为：弓手攻击或受击时，立刻飘向屏幕左上方向。
-
----
-
-## 版本 0.4.0 - 能量 + 技能系统 (2026-04-03 ~ 2026-04-06)
-
-### 本次修改的文件
-
-| 文件 | 改动内容 |
-|------|---------|
-| `scripts/battle/skill_data.gd` | **新增** — 技能数据结构类，支持名称、描述、能量消耗、伤害、攻击范围、方向模式 |
-| `scripts/battle/player.gd` | 新增能量系统（最大5点）、防御指令、4个预设技能、消耗/获得能量方法 |
-| `scripts/battle/battle_scene.gd` | 新增底部技能栏UI、能量显示（◆◇符号）、技能按钮禁用状态管理 |
-
-### 新增功能
-
-#### 能量系统
-- 玩家最大能量：5点
-- 每回合开始重置
-- 防御指令：减少1点伤害，获得1能量
-- 跳过指令：获得1能量
-- 击杀敌人：获得1能量
-
-#### 4个预设技能
-| 技能 | 消耗 | 伤害 | 范围 | 描述 |
-|------|------|------|------|------|
-| 斩击 | 0 | 1 | 前方1格 | 基础攻击 |
-| 突刺 | 1 | 1 | 前方2格 | 穿透攻击 |
-| 横扫 | 2 | 1 | 左右各1格 | AOE |
-| 重击 | 2 | 2 | 前方1格 | 高伤害 |
-
-#### 方向模式
-- `facing`：只攻击面朝方向
-- `both`：同时攻击左右两侧
-- `behind`：攻击身后
-
-#### 技能按钮UI
-- 底部居中技能栏，4个技能按钮 + 防御按钮 + 跳过按钮
-- 能量不足时按钮变灰禁用
-- 能量消耗数字显示在按钮上（如"斩0" "刺1"）
-- 悬停显示完整tooltip（名称、能量消耗、描述）
-
-### 当前完整操作方式
-| 操作 | 键盘 | 鼠标 |
-|------|------|------|
-| 左移 | A / 左方向键 | 点击左边相邻空格子 |
-| 右移 | D / 右方向键 | 点击右边相邻空格子 |
-| 攻击 | Space / Enter | 点击相邻敌人 或 Attack按钮 |
-| 跳过 | S | Skip按钮 |
-| 防御 | D（在行动阶段） | 防御按钮 |
-| 技能 | 1/2/3/4 | 点击技能按钮 |
-
-### 接下来计划实现的功能（按优先级）
-1. **更多敌人类型** - 不同 AI 行为模式（远程、冲锋、防御等）
-2. **占位符像素素材** - 替换色块为简单像素画
-3. **关卡/楼层系统** - 多场战斗的 Roguelike 流程
-4. **奖励/升级界面** - 战斗间选择新技能
-5. **音效和视觉特效** - 补充游戏反馈
-
-### 已知问题
-- 只有一个史莱姆敌人类型
-- 没有音效
-- 战斗胜利/失败界面是占位符
-
----
-
-## 版本 0.3.0 - 战斗视觉反馈 (2026-04-01 ~ 2026-04-02)
-
-### 本次修改的文件
-
-| 文件 | 改动内容 |
-|------|---------|
-| `scripts/battle/entity.gd` | 新增攻击突进动画、受击闪烁+抖动、浮动文字（伤害/KO） |
-| `scripts/battle/battle_scene.gd` | 新增屏幕震动、命中脉冲效果、回合横幅动画、技能范围预览、敌人HP标签动态更新 |
-
-### 新增功能
-
-#### 攻击动画
-- 攻击时向面朝方向突进5像素（0.05s），然后回到原位（0.08s）
-
-#### 受击效果
-- 受伤时角色闪烁变红（粉色调）
-- 受伤时左右抖动（4px → -4px → -2px → 0）
-- 浮动文字显示伤害数字 `-N`（红色），格挡时显示"格挡!"（蓝色）
-- KO时显示 "KO"（金色）
-
-#### 屏幕震动
-- 角色受伤时整个 BattleScene 轻微震动（2.5像素，4次往复）
-
-#### 浮动文字系统
-- `_spawn_floating_text()` 方法，支持任意文字和颜色
-- 向上飘动+渐隐动画（0.35s）
-
-#### 命中脉冲
-- 攻击命中时在被击中位置生成一个橙色方块脉冲动画
-
-#### 回合横幅
-- 敌人回合开始时 InfoLabel 放大+淡入动画
-
-#### 技能范围预览
-- 鼠标悬停技能按钮时，高亮显示技能会命中的格子（红色=有敌人，橙色=空地）
-
-### 已知问题
-- 视觉反馈已基本完善
-- 仍无音效
-
----
-
-## 版本 0.2.0 - 敌人意图 + 鼠标交互 (2026-03-31)
-
-### 本次修改的文件
-
-| 文件 | 改动内容 |
-|------|---------|
-| `scripts/battle/battle_scene.gd` | **大幅重写** — 新增鼠标点击移动/攻击、格子悬停高亮、Attack/Skip按钮、敌人意图刷新、战斗结束状态管理 |
-| `scripts/battle/enemy_base.gd` | 新增意图显示系统：`update_intent()` 计算意图，头顶显示文字标签（ATK!/>>>/<<</.../!!!） |
-| `scripts/battle/player.gd` | 新增 `try_move_to(pos)` 点击目标格子移动、`try_attack_at(pos)` 点击目标格子攻击 |
-| `scripts/battle/grid.gd` | 新增 `world_to_grid()` 将鼠标坐标转换为格子索引 |
-
-### 新增功能
-
-#### 敌人意图预告
-- 每个回合开始时，所有敌人头顶显示它们下一步的行为
-- `ATK!` (红色) = 将要攻击
-- `>>>` 或 `<<<` (黄色) = 将要移动
-- `...` (灰色) = 待机
-- 意图基于敌人当前与玩家的距离实时计算
-
-#### 鼠标点击操作
-- **点击相邻空格子** → 玩家移动到该格子（绿色高亮提示）
-- **点击相邻敌人格子** → 玩家攻击该敌人（红色高亮提示）
-- 非相邻格子点击无效（暗色高亮提示）
-- 悬停时自动变色反馈可操作性
-
-#### UI按钮
-- **Attack 按钮** — 点击执行面朝方向攻击（等同 Space 键）
-- **Skip 按钮** — 点击跳过回合（等同 S 键）
-- 按钮在非玩家回合自动变灰禁用
-
-### 当前完整操作方式
-| 操作 | 键盘 | 鼠标 |
-|------|------|------|
-| 左移 | A / 左方向键 | 点击左边相邻空格子 |
-| 右移 | D / 右方向键 | 点击右边相邻空格子 |
-| 攻击 | Space / Enter | 点击相邻敌人 或 Attack按钮 |
-| 跳过 | S | Skip按钮 |
-
-### 接下来计划实现的功能（按优先级）
-1. **战斗动画/视觉反馈** - 攻击闪烁、受伤抖动、移动平滑过渡
-2. **技能系统框架** - 可配置的攻击/技能，替代当前的固定攻击
-3. **更多敌人类型** - 不同 AI 行为模式（远程、冲锋、防御等）
-4. **占位符像素素材** - 替换色块为简单像素画
-5. **关卡/楼层系统** - 多场战斗的 Roguelike 流程
-6. **奖励/升级界面** - 战斗间选择新技能
-
-### 已知问题
-- 格子悬停颜色在玩家移动后不会立即刷新（需要鼠标移动触发）
-- 没有动画过渡，敌人行动是瞬间完成的
-- Attack按钮只攻击面朝方向，如果面朝方向没有敌人则无效
-- 没有音效和视觉特效
-
----
-
-## 版本 0.1.0 - 项目骨架 (2026-03-31)
-
-### 本次完成的工作
-
-#### 项目配置
-- `project.godot` - Godot 4.5 项目配置文件
-  - 原生分辨率 384x216，窗口 1920x1080（5倍放大）
-  - 像素风渲染设置（最近邻采样，无纹理过滤）
-  - GL Compatibility 渲染器
-  - 输入映射：A/D 移动，Space 攻击，S 跳过回合，方向键也可移动
-  - GameManager 注册为全局 Autoload
-
-#### 核心脚本
-| 文件 | 作用 |
+### 代码职责速查
+| 路径 | 作用 |
 |------|------|
-| `scripts/core/game_manager.gd` | 全局游戏管理器（Autoload），管理游戏状态、存档数据、场景切换 |
-| `scripts/battle/turn_manager.gd` | 回合管理器，控制 玩家输入→玩家行动→敌人行动→结算 的流程 |
-| `scripts/battle/grid.gd` | 1D 格子数据结构，管理实体位置、移动、碰撞检测 |
-| `scripts/battle/entity.gd` | 实体基类，包含 HP、受伤、死亡等通用逻辑 |
-| `scripts/battle/player.gd` | 玩家类，继承 entity，处理移动和基础攻击 |
-| `scripts/battle/enemy_base.gd` | 敌人基类，继承 entity，包含 AI 决策框架（靠近/攻击） |
-| `scripts/battle/enemies/slime_enemy.gd` | 史莱姆敌人（测试用），2HP，每2回合行动 |
-| `scripts/battle/battle_scene.gd` | 战斗场景控制器，协调所有战斗逻辑和 UI |
-| `scripts/ui/main_menu.gd` | 主菜单脚本，处理开始按钮 |
+| `scripts/core/game_manager.gd` | 全局状态与场景切换 |
+| `scripts/battle/battle_scene.gd` | 战斗主控、UI、输入、敌人生成 |
+| `scripts/battle/turn_manager.gd` | 回合状态机（玩家->敌人->结算） |
+| `scripts/battle/grid.gd` | 1D 网格坐标、占位、碰撞、世界坐标换算 |
+| `scripts/battle/entity.gd` | 实体通用逻辑（HP、受击/攻击动画、浮字） |
+| `scripts/battle/player.gd` | 玩家行动与技能/能量系统 |
+| `scripts/battle/enemy_base.gd` | 敌人基类与意图系统 |
+| `scripts/battle/enemies/*.gd` | 敌人具体AI（史莱姆、弓手） |
 
-#### 目录结构
+---
+
+## 当前可玩状态（2026-04-07）
+
+### 功能
+- 回合流程：玩家输入 -> 玩家行动 -> 敌人行动 -> 结算
+- 玩家动作：移动、4个技能、防御、跳过
+- 资源系统：能量（上限5），击杀/防御/跳过可回能
+- 敌人：史莱姆（近战节奏型）、弓手（远程+后撤）
+- 反馈：突进、受击闪烁、受击抖动、浮字、命中脉冲、屏幕震动
+- 意图：敌人每回合前展示下一步行为
+
+### 操作
+- 左移：A / 左方向键
+- 右移：D / 右方向键
+- 确认攻击（默认技能1）：Space / Enter
+- 跳过：S
+- 技能：1 / 2 / 3 / 4（按钮也可触发）
+- 鼠标：点击相邻空格移动
+
+---
+
+## 完整目录结构（排除 `.godot/.git/.claude` 缓存）
+
+```text
+├─ .vscode/
+│  ├─ mcp.json
+│  └─ settings.json
+├─ addons/
+│  └─ godot_mcp/
+│     ├─ tools/
+│     │  ├─ asset_tools.gd
+│     │  ├─ asset_tools.gd.uid
+│     │  ├─ file_tools.gd
+│     │  ├─ file_tools.gd.uid
+│     │  ├─ project_tools.gd
+│     │  ├─ project_tools.gd.uid
+│     │  ├─ scene_tools.gd
+│     │  ├─ scene_tools.gd.uid
+│     │  ├─ script_tools.gd
+│     │  ├─ script_tools.gd.uid
+│     │  ├─ visualizer_tools.gd
+│     │  └─ visualizer_tools.gd.uid
+│     ├─ mcp_client.gd
+│     ├─ mcp_client.gd.uid
+│     ├─ plugin.cfg
+│     ├─ plugin.gd
+│     ├─ plugin.gd.uid
+│     ├─ tool_executor.gd
+│     └─ tool_executor.gd.uid
+├─ assets/
+│  ├─ fonts/
+│  │  ├─ fusion-pixel-12px-monospaced-zh_hans.otf
+│  │  ├─ fusion-pixel-12px-monospaced-zh_hans.otf.import
+│  │  ├─ zpix.ttf
+│  │  └─ zpix.ttf.import
+│  └─ icons_preview/
+│     ├─ grid_icons_1.png
+│     ├─ grid_icons_1.png.import
+│     ├─ grid_icons_2.png
+│     ├─ grid_icons_2.png.import
+│     ├─ slash_icon_1.png
+│     ├─ slash_icon_1.png.import
+│     ├─ slash_icon_2.png
+│     ├─ slash_icon_2.png.import
+│     ├─ sprite_sheet_1.png
+│     ├─ sprite_sheet_1.png.import
+│     ├─ sprite_sheet_2.png
+│     └─ sprite_sheet_2.png.import
+├─ scenes/
+│  ├─ battle/
+│  │  └─ battle_scene.tscn
+│  └─ main.tscn
+├─ scripts/
+│  ├─ battle/
+│  │  ├─ enemies/
+│  │  │  ├─ archer_enemy.gd
+│  │  │  ├─ archer_enemy.gd.uid
+│  │  │  ├─ slime_enemy.gd
+│  │  │  └─ slime_enemy.gd.uid
+│  │  ├─ battle_scene.gd
+│  │  ├─ battle_scene.gd.uid
+│  │  ├─ enemy_base.gd
+│  │  ├─ enemy_base.gd.uid
+│  │  ├─ entity.gd
+│  │  ├─ entity.gd.uid
+│  │  ├─ grid.gd
+│  │  ├─ grid.gd.uid
+│  │  ├─ player.gd
+│  │  ├─ player.gd.uid
+│  │  ├─ skill_data.gd
+│  │  ├─ skill_data.gd.uid
+│  │  ├─ turn_manager.gd
+│  │  └─ turn_manager.gd.uid
+│  ├─ core/
+│  │  ├─ game_manager.gd
+│  │  └─ game_manager.gd.uid
+│  └─ ui/
+│     ├─ main_menu.gd
+│     └─ main_menu.gd.uid
+├─ shogun_project/
+│  ├─ .vscode/
+│  │  └─ settings.json
+│  ├─ assets/
+│  │  ├─ fonts/
+│  │  │  ├─ fusion-pixel-12px-monospaced-zh_hans.otf
+│  │  │  └─ zpix.ttf
+│  │  └─ icons_preview/
+│  │     ├─ grid_icons_1.png
+│  │     ├─ grid_icons_2.png
+│  │     ├─ slash_icon_1.png
+│  │     ├─ slash_icon_2.png
+│  │     ├─ sprite_sheet_1.png
+│  │     └─ sprite_sheet_2.png
+│  ├─ scenes/
+│  │  ├─ battle/
+│  │  │  └─ battle_scene.tscn
+│  │  └─ main.tscn
+│  ├─ scripts/
+│  │  ├─ battle/
+│  │  │  ├─ enemies/
+│  │  │  │  └─ slime_enemy.gd
+│  │  │  ├─ battle_scene.gd
+│  │  │  ├─ enemy_base.gd
+│  │  │  ├─ entity.gd
+│  │  │  ├─ grid.gd
+│  │  │  ├─ player.gd
+│  │  │  ├─ skill_data.gd
+│  │  │  └─ turn_manager.gd
+│  │  ├─ core/
+│  │  │  └─ game_manager.gd
+│  │  └─ ui/
+│  │     └─ main_menu.gd
+│  ├─ shogun_project/
+│  │  ├─ scenes/
+│  │  │  ├─ battle/
+│  │  │  │  └─ battle_scene.tscn
+│  │  │  └─ main.tscn
+│  │  ├─ scripts/
+│  │  │  ├─ battle/
+│  │  │  │  ├─ enemies/
+│  │  │  │  │  └─ slime_enemy.gd
+│  │  │  │  ├─ battle_scene.gd
+│  │  │  │  ├─ enemy_base.gd
+│  │  │  │  ├─ entity.gd
+│  │  │  │  ├─ grid.gd
+│  │  │  │  ├─ player.gd
+│  │  │  │  └─ turn_manager.gd
+│  │  │  ├─ core/
+│  │  │  │  └─ game_manager.gd
+│  │  │  └─ ui/
+│  │  │     └─ main_menu.gd
+│  │  ├─ devlog.md
+│  │  ├─ icon.svg
+│  │  └─ project.godot
+│  ├─ devlog.md
+│  ├─ icon.svg
+│  ├─ icon.svg.import
+│  └─ project.godot
+├─ .editorconfig
+├─ .gitattributes
+├─ .gitignore
+├─ devlog.md
+├─ godot-mcp-server-0.4.1.tgz
+├─ icon.svg
+├─ icon.svg.import
+├─ project.godot
+└─ tmp_mcp_call_is_playing.js
 ```
-shogun_project/
-├── project.godot
-├── icon.svg
-├── scenes/
-│   ├── main.tscn              # 主菜单
-│   └── battle/
-│       └── battle_scene.tscn  # 战斗场景
-├── scripts/
-│   ├── core/
-│   │   └── game_manager.gd    # 全局管理器
-│   ├── battle/
-│   │   ├── turn_manager.gd    # 回合管理
-│   │   ├── grid.gd            # 1D网格
-│   │   ├── entity.gd          # 实体基类
-│   │   ├── player.gd          # 玩家
-│   │   ├── enemy_base.gd      # 敌人基类
-│   │   ├── battle_scene.gd    # 战斗场景逻辑
-│   │   └── enemies/
-│   │       └── slime_enemy.gd # 史莱姆敌人
-│   └── ui/
-│       └── main_menu.gd       # 主菜单逻辑
-├── resources/entities/         # (预留) 实体数据资源
-├── assets/sprites/placeholder/ # (预留) 占位符素材
-├── assets/ui/                  # (预留) UI素材
-├── assets/audio/               # (预留) 音频素材
-└── devlog.md                   # 本文件
-```
+
+---
+
+## 版本记录
+
+## 版本 0.6.2 - VS Code 文件树清理（2026-04-07）
+
+### 本次修改
+- 在工作区设置中隐藏 Godot 自动生成文件，减少文件树噪音：
+  - `**/*.uid`
+  - `**/*.import`
+- 说明：仅影响 VS Code 显示，不影响 Godot 资源导入与运行。
+
+### 影响文件
+- `.vscode/settings.json`
+- `devlog.md`
+
+## 版本 0.6.1 - 文档增强 + 动画回位修复（2026-04-07）
+
+### 本次修改
+- 文档增强：
+  - 将日志从“纯精简版”升级为“协作版”结构（快速上手、职责速查、完整目录树、版本记录）
+  - 明确记录当前引擎版本为 **Godot 4.6**
+- 动画回位修复（核心）：
+  - 修复攻击/受击后偶发停在位移终点的问题
+  - 在实体基类新增位移动画抢占与收尾归位机制（统一管理 `_motion_tween`）
+  - 受击抖动从并行 tween 改为顺序 tween，避免多位置 tweener 同时写入 `position`
+  - 动画结束统一强制回到 `_visual_anchor`
+
+### 影响文件
+- `scripts/battle/entity.gd`
+- `devlog.md`
+
+---
+
+## 版本 0.6.0 - 文档压缩 + 1080p布局适配（2026-04-07）
+
+### 本次修改
+- 文档压缩：保留关键里程碑，删减重复描述
+- 分辨率改为 1920x1080，纹理过滤切到线性
+- 战斗布局高清化（网格、UI、体积、特效比例）
+- 主菜单高清化（标题和按钮尺寸）
+
+### 影响文件
+- `project.godot`
+- `scripts/battle/grid.gd`
+- `scripts/battle/battle_scene.gd`
+- `scripts/battle/entity.gd`
+- `scripts/battle/enemy_base.gd`
+- `scripts/ui/main_menu.gd`
+- `devlog.md`
+
+---
+
+## 版本 0.5.2 - 技能结算修复（2026-04-06）
+
+### 关键修复
+- 技能支持空放（无命中也可释放）
+- 释放即扣能量（施放成功即消耗）
+- 范围先做合法过滤再结算
+- 伤害与能量下限保护（>=0）
+- 未命中显示“落空”反馈
+
+### 影响文件
+- `scripts/battle/player.gd`
+- `scripts/battle/skill_data.gd`
+
+---
+
+## 历史里程碑（摘要）
+
+| 版本 | 核心内容 |
+|------|----------|
+| 0.5.1 | 修复弓手攻击/受击视觉飘移（锚点同步与位置入口统一） |
+| 0.5.0 | 新增弓手敌人；战场敌人组合扩展；清理挡UI节点 |
+| 0.4.0 | 引入能量与技能框架（4技能 + 防御/跳过 + 技能栏） |
+| 0.3.0 | 完成主要战斗视觉反馈（受击、浮字、震屏、范围预览） |
+| 0.2.0 | 敌人意图系统 + 鼠标交互 + Attack/Skip按钮 |
+| 0.1.0 | 项目骨架搭建（主菜单、战斗场景、回合/网格/实体基础） |
+
+---
+
+## 当前已知问题
+- 仍缺少音效与BGM
+- 胜利/失败后的界面仍是占位流程
+- 存在多层历史副本目录，开发时必须确认当前操作路径是主工程根目录
+
+---
+
+## 下一阶段优先级
+1. 增加敌人类型（战士、冲锋怪等）并补齐行为差异
+2. 接入正式素材并替换色块占位资源
+3. 搭建“战斗后奖励/升级”界面并连通楼层推进
+4. 补齐音效与关键技能特效

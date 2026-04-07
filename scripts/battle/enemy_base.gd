@@ -27,8 +27,8 @@ func _ready() -> void:
 func _create_intent_label() -> void:
 	_intent_label = Label.new()
 	_intent_label.name = "IntentLabel"
-	_intent_label.position = Vector2(-12, -48)
-	_intent_label.add_theme_font_size_override("font_size", 8)
+	_intent_label.position = Vector2(-26, -148)
+	_intent_label.add_theme_font_size_override("font_size", 18)
 	_intent_label.add_theme_color_override("font_color", Color.YELLOW)
 	add_child(_intent_label)
 
