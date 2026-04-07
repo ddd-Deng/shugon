@@ -17,6 +17,11 @@ var _visual_anchor: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	_visual_anchor = position
+	# Spawn scripts often set position after add_child(), so sync once next frame too.
+	call_deferred("_sync_visual_anchor")
+
+func _sync_visual_anchor() -> void:
+	_visual_anchor = position
 
 func take_damage(amount: int) -> void:
 	if is_dead:
@@ -40,10 +45,9 @@ func _on_die() -> void:
 	print("[%s] died!" % entity_name)
 
 func update_visual_position(world_pos: Vector2) -> void:
-	# Smoothly move to grid position
+	# Immediately set both anchor and position to avoid drift from old tweens
 	_visual_anchor = world_pos
-	var tween = create_tween()
-	tween.tween_property(self, "position", world_pos, 0.15).set_ease(Tween.EASE_OUT)
+	position = world_pos
 
 func play_attack_effect(direction: int = facing) -> void:
 	if is_dead:
@@ -51,19 +55,26 @@ func play_attack_effect(direction: int = facing) -> void:
 	var dir = direction
 	if dir == 0:
 		dir = facing
+	# Immediately snap to anchor, no tween drift
+	position = _visual_anchor
 	var lunge_distance = 5.0
 	var lunge_target = _visual_anchor + Vector2(lunge_distance * dir, 0)
 	var tween = create_tween()
+	tween.set_parallel(false)
 	tween.tween_property(self, "position", lunge_target, 0.05).set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, "position", _visual_anchor, 0.08).set_ease(Tween.EASE_IN)
 
 func _play_hit_effect(amount: int) -> void:
 	_spawn_floating_text("-%d" % amount, Color(1.0, 0.35, 0.35, 1.0))
+	# Immediately snap to anchor to stop any in-progress move/animation
+	position = _visual_anchor
 	var flash = create_tween()
+	flash.set_parallel(true)
 	flash.tween_property(self, "modulate", Color(1.45, 0.42, 0.42, 1.0), 0.05)
 	flash.tween_property(self, "modulate", Color(1, 1, 1, 1), 0.12)
 
 	var shake = create_tween()
+	shake.set_parallel(true)
 	shake.tween_property(self, "position", _visual_anchor + Vector2(-4, 0), 0.03)
 	shake.tween_property(self, "position", _visual_anchor + Vector2(4, 0), 0.03)
 	shake.tween_property(self, "position", _visual_anchor + Vector2(-2, 0), 0.02)

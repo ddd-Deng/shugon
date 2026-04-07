@@ -1,14 +1,22 @@
 ; Engine configuration file.
 ; It's best edited using the editor UI and not directly,
-; but it can also be edited by hand.
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
 config/name="Shogun Prototype"
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.5", "GL Compatibility")
+config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -22,13 +30,10 @@ window/size/viewport_height=216
 window/size/window_width_override=1920
 window/size/window_height_override=1080
 window/stretch/mode="viewport"
-window/stretch/aspect="keep"
 
-[rendering]
+[editor_plugins]
 
-textures/canvas_textures/default_texture_filter=0
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
 
 [input]
 
@@ -55,3 +60,9 @@ skip_turn={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":83,"key_label":0,"unicode":115,"location":0,"echo":false,"script":null)
 ]
 }
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

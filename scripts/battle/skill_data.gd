@@ -74,15 +74,19 @@ static func create_heavy_strike() -> SkillData:
 func get_target_positions(caster_pos: int, caster_facing: int) -> Array[int]:
 	# Returns all grid positions this skill would hit
 	var targets: Array[int] = []
+	var range_steps = max(1, attack_range)
+	var dir = caster_facing
+	if dir == 0:
+		dir = 1
 	match direction_mode:
 		"facing":
-			for i in range(1, attack_range + 1):
-				targets.append(caster_pos + caster_facing * i)
+			for i in range(1, range_steps + 1):
+				targets.append(caster_pos + dir * i)
 		"both":
-			for i in range(1, attack_range + 1):
+			for i in range(1, range_steps + 1):
 				targets.append(caster_pos + i)
 				targets.append(caster_pos - i)
 		"behind":
-			for i in range(1, attack_range + 1):
-				targets.append(caster_pos - caster_facing * i)
+			for i in range(1, range_steps + 1):
+				targets.append(caster_pos - dir * i)
 	return targets

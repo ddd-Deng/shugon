@@ -92,26 +92,41 @@ func try_use_skill(skill_index: int, grid: Node) -> bool:
 	if skill_index < 0 or skill_index >= skills.size():
 		return false
 	var skill: SkillData = skills[skill_index]
+	var energy_cost = max(0, skill.energy_cost)
+	var skill_damage = max(0, skill.damage)
 	# Check energy
-	if current_energy < skill.energy_cost:
+	if current_energy < energy_cost:
 		return false
-	# Get target positions
+
+	# Resolve target positions and clamp to valid grid cells.
 	var target_cells = skill.get_target_positions(grid_pos, facing)
-	# Check if any target has an enemy
-	var hit_any = false
+	var valid_cells: Array[int] = []
 	for cell_pos in target_cells:
+		if grid.is_valid_pos(cell_pos):
+			valid_cells.append(cell_pos)
+
+	# Execute cast first: skill should be castable even when no enemy is hit.
+	spend_energy(energy_cost)
+	play_attack_effect(facing)
+
+	var hit_any = false
+	var hit_count = 0
+	var total_damage = 0
+
+	# Apply damage to all valid targets in range.
+	for cell_pos in valid_cells:
 		var target = grid.get_entity_at(cell_pos)
 		if target and target != self:
 			hit_any = true
+			hit_count += 1
+			total_damage += skill_damage
+			target.take_damage(skill_damage)
+
 	if not hit_any:
-		return false
-	# Execute: spend energy, play effect, deal damage
-	spend_energy(skill.energy_cost)
-	play_attack_effect(facing)
-	for cell_pos in target_cells:
-		var target = grid.get_entity_at(cell_pos)
-		if target and target != self:
-			target.take_damage(skill.damage)
+		_spawn_floating_text("落空", Color(0.8, 0.8, 0.9, 1.0))
+	else:
+		print("[Player] Skill %s hit %d target(s), total damage %d" % [skill.skill_name, hit_count, total_damage])
+
 	action_taken.emit("skill:" + skill.skill_name)
 	return true
 

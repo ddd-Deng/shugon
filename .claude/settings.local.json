@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "mcp__godot-mcp__get_godot_status"
+      "mcp__godot-mcp__get_godot_status",
+      "mcp__godot-mcp__list_dir",
+      "mcp__godot-mcp__get_errors",
+      "mcp__godot-mcp__read_file",
+      "mcp__godot-mcp__read_scene"
     ]
   }
 }

@@ -8,7 +8,6 @@ extends Node2D
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var hp_label: Label = $UILayer/HpLabel
 @onready var turn_label: Label = $UILayer/TurnLabel
-@onready var info_label: Label = $UILayer/InfoLabel
 @onready var grid_visual: Node2D = $GridVisual
 
 var enemies: Array = []
@@ -53,9 +52,9 @@ func _setup_battle() -> void:
 	grid.setup(9)
 	grid.place_entity(player, 1)
 	player.grid_pos = 1
-	player.position = grid.grid_to_world(1)
-	_spawn_enemy(5)
-	_spawn_enemy(7)
+	player.update_visual_position(grid.grid_to_world(1))
+	_spawn_enemy(5, "res://scripts/battle/enemies/slime_enemy.gd", Color.INDIAN_RED)
+	_spawn_enemy(7, "res://scripts/battle/enemies/archer_enemy.gd", Color(0.2, 0.8, 0.3))
 	_update_ui()
 	_draw_grid()
 	_update_all_enemy_intents()
@@ -114,20 +113,20 @@ func _create_skill_bar() -> void:
 	_skip_button.pressed.connect(_on_skip_button_pressed)
 	ui_layer.add_child(_skip_button)
 
-func _spawn_enemy(pos: int) -> void:
+func _spawn_enemy(pos: int, enemy_script_path: String = "res://scripts/battle/enemies/slime_enemy.gd", enemy_color: Color = Color.INDIAN_RED) -> void:
 	var enemy_node = Node2D.new()
-	var enemy_script = load("res://scripts/battle/enemies/slime_enemy.gd")
+	var enemy_script = load(enemy_script_path)
 	enemy_node.set_script(enemy_script)
 	add_child(enemy_node)
 	grid.place_entity(enemy_node, pos)
 	enemy_node.grid_pos = pos
 	enemy_node.facing = -1
-	enemy_node.position = grid.grid_to_world(pos)
+	enemy_node.update_visual_position(grid.grid_to_world(pos))
 	enemy_node.died.connect(_on_enemy_died.bind(enemy_node))
 	enemy_node.damaged.connect(_on_entity_damaged)
 	enemies.append(enemy_node)
 	var sprite = ColorRect.new()
-	sprite.color = Color.INDIAN_RED
+	sprite.color = enemy_color
 	sprite.size = Vector2(24, 24)
 	sprite.position = Vector2(-12, -24)
 	enemy_node.add_child(sprite)
@@ -239,12 +238,8 @@ func _on_player_input_phase() -> void:
 	_refresh_grid_visuals()
 	_update_skill_button_states()
 	_update_energy_display()
-	info_label.text = "点击格子移动 | 使用技能攻击"
 
 func _on_enemy_act_phase() -> void:
-	info_label.text = "敌人回合..."
-	_set_all_buttons_disabled(true)
-	await _play_turn_banner("敌人回合")
 	await get_tree().create_timer(enemy_turn_start_delay).timeout
 	for enemy in enemies:
 		if _battle_over:
@@ -275,7 +270,6 @@ func _on_energy_changed(_current: int, _max_val: int) -> void:
 
 func _on_player_died() -> void:
 	_battle_over = true
-	info_label.text = "你已败北（占位）"
 	_set_all_buttons_disabled(true)
 	GameManager.on_player_died()
 
@@ -288,7 +282,6 @@ func _on_enemy_died(enemy: Node) -> void:
 
 func _on_battle_won() -> void:
 	_battle_over = true
-	info_label.text = "战斗胜利！（占位）"
 	_set_all_buttons_disabled(true)
 	print("[BattleScene] All enemies defeated!")
 
@@ -354,16 +347,6 @@ func _set_all_buttons_disabled(disabled: bool) -> void:
 		_defend_button.disabled = disabled
 	if _skip_button:
 		_skip_button.disabled = disabled
-
-func _play_turn_banner(text_value: String) -> void:
-	info_label.text = text_value
-	info_label.scale = Vector2.ONE
-	info_label.modulate = Color(1, 1, 1, 0.6)
-	var tween = create_tween()
-	tween.tween_property(info_label, "scale", Vector2(1.1, 1.1), 0.08).set_ease(Tween.EASE_OUT)
-	tween.tween_property(info_label, "scale", Vector2.ONE, 0.08).set_ease(Tween.EASE_IN)
-	tween.parallel().tween_property(info_label, "modulate:a", 1.0, 0.08)
-	await tween.finished
 
 func _on_entity_damaged(_amount: int, hit_world_pos: Vector2) -> void:
 	_spawn_hit_pulse(hit_world_pos)

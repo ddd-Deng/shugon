@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "godot-mcp": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "godot-mcp-server"
+      ]
+    }
+  }
+}
